@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Incoming Requests – BookSwap Hub</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+    <link rel="stylesheet" th:href="@{/css/books.css}" />
+</head>
+
+<body>
+    <div class="page-wrapper">
+
+        <nav class="top-nav">
+            <a class="nav-brand" th:href="@{/books}">📚 BookSwap Hub</a>
+            <div class="nav-links">
+                <a class="nav-link" th:href="@{/books}">Browse</a>
+                <th:block th:if="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/books/new}">+ List Book</a>
+                    <a class="nav-link" th:href="@{/books/my-listings}">My Listings</a>
+                    <a class="nav-link" th:href="@{/my-requests}">My Requests</a>
+                    <a class="nav-link active" th:href="@{/owner/requests}">Inbox</a>
+                    <form th:action="@{/logout}" method="post" style="margin:0">
+                        <button type="submit" class="nav-link" style="background:none;cursor:pointer;border:none;">Sign
+                            Out</button>
+                    </form>
+                </th:block>
+                <th:block th:unless="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/login}">🔑 Login</a>
+                    <a class="nav-link accent" th:href="@{/register}">✨ Register</a>
+                </th:block>
+            </div>
+        </nav>
+
+        <div class="page-header">
+            <h1>📬 Incoming Requests</h1>
+            <p>Buyers interested in your books — approve or reject their requests.</p>
+        </div>
+
+        <div class="flash-success" th:if="${successMessage}">✅ <span th:text="${successMessage}"></span></div>
+        <div class="flash-error" th:if="${errorMessage}">❌ <span th:text="${errorMessage}"></span></div>
+
+        <div class="empty-state" th:if="${requests == null or requests.isEmpty()}">
+            <div class="empty-icon">📭</div>
+            <h3>No incoming requests yet</h3>
+            <p>When someone requests to buy your book, it'll appear here.</p>
+        </div>
+
+        <div class="table-card" th:unless="${requests == null or requests.isEmpty()}">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Book</th>
+                        <th>From</th>
+                        <th>Message</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="req : ${requests}">
+                        <td>
+                            <a th:href="@{/books/{id}(id=${req.book.id})}"
+                                style="color:#c4b5fd;text-decoration:none;font-weight:600;"
+                                th:text="${req.book.title}">Title</a>
+                            <div style="font-size:0.78rem;color:#64748b;margin-top:2px"
+                                th:text="'₹' + ${req.book.price}">₹0</div>
+                        </td>
+                        <td style="font-weight:600" th:text="${req.requester.username}">Buyer</td>
+                        <td style="max-width:180px;color:#94a3b8;font-size:0.85rem" th:text="${req.message}">Message
+                        </td>
+                        <td>
+                            <span class="badge" th:classappend="${req.status.name() == 'PENDING'} ? 'badge-pending' :
+                                          (${req.status.name() == 'APPROVED'} ? 'badge-approved' : 'badge-rejected')"
+                                th:text="${req.status.name()}">Status</span>
+                        </td>
+                        <td style="font-size:0.82rem;color:#64748b"
+                            th:text="${#temporals.format(req.createdAt, 'dd MMM yyyy')}">Date</td>
+                        <td>
+                            <div th:if="${req.status.name() == 'PENDING'}" style="display:flex;gap:0.4rem;">
+                                <form th:action="@{/requests/{id}/approve(id=${req.id})}" method="post"
+                                    style="margin:0">
+                                    <button type="submit" class="action-btn action-btn-approve">✅ Approve</button>
+                                </form>
+                                <form th:action="@{/requests/{id}/reject(id=${req.id})}" method="post" style="margin:0">
+                                    <button type="submit" class="action-btn action-btn-reject">✖ Reject</button>
+                                </form>
+                            </div>
+                            <span th:unless="${req.status.name() == 'PENDING'}"
+                                style="color:#64748b;font-size:0.82rem;">—</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

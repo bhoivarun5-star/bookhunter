@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Requests – BookSwap Hub</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+    <link rel="stylesheet" th:href="@{/css/books.css}" />
+</head>
+
+<body>
+    <div class="page-wrapper">
+
+        <nav class="top-nav">
+            <a class="nav-brand" th:href="@{/books}">📚 BookSwap Hub</a>
+            <div class="nav-links">
+                <a class="nav-link" th:href="@{/books}">Browse</a>
+                <th:block th:if="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/books/new}">+ List Book</a>
+                    <a class="nav-link" th:href="@{/books/my-listings}">My Listings</a>
+                    <a class="nav-link active" th:href="@{/my-requests}">My Requests</a>
+                    <a class="nav-link" th:href="@{/owner/requests}">Inbox</a>
+                    <form th:action="@{/logout}" method="post" style="margin:0">
+                        <button type="submit" class="nav-link" style="background:none;cursor:pointer;border:none;">Sign
+                            Out</button>
+                    </form>
+                </th:block>
+                <th:block th:unless="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/login}">🔑 Login</a>
+                    <a class="nav-link accent" th:href="@{/register}">✨ Register</a>
+                </th:block>
+            </div>
+        </nav>
+
+        <div class="page-header">
+            <h1>📩 My Buy Requests</h1>
+            <p>Books you've requested to purchase and their current status.</p>
+        </div>
+
+        <div class="empty-state" th:if="${requests == null or requests.isEmpty()}">
+            <div class="empty-icon">📭</div>
+            <h3>No requests sent yet</h3>
+            <p><a th:href="@{/books}" style="color:#a78bfa">Browse books</a> and send a request!</p>
+        </div>
+
+        <div class="table-card" th:unless="${requests == null or requests.isEmpty()}">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Book</th>
+                        <th>Owner</th>
+                        <th>Your Message</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="req : ${requests}">
+                        <td>
+                            <a th:href="@{/books/{id}(id=${req.book.id})}"
+                                style="color:#c4b5fd;text-decoration:none;font-weight:600;"
+                                th:text="${req.book.title}">Title</a>
+                            <div style="font-size:0.78rem;color:#64748b;margin-top:2px"
+                                th:text="'₹' + ${req.book.price}">₹0</div>
+                        </td>
+                        <td th:text="${req.book.owner.username}">Owner</td>
+                        <td style="max-width:200px;color:#94a3b8;font-size:0.85rem" th:text="${req.message}">Message
+                        </td>
+                        <td>
+                            <span class="badge" th:classappend="${req.status.name() == 'PENDING'} ? 'badge-pending' :
+                                          (${req.status.name() == 'APPROVED'} ? 'badge-approved' : 'badge-rejected')"
+                                th:text="${req.status.name()}">Status</span>
+                        </td>
+                        <td style="font-size:0.82rem;color:#64748b"
+                            th:text="${#temporals.format(req.createdAt, 'dd MMM yyyy')}">Date</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

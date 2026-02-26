@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Browse Books – BookSwap Hub</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+    <link rel="stylesheet" th:href="@{/css/books.css}" />
+</head>
+
+<body>
+    <div class="page-wrapper">
+
+        <!-- Nav -->
+        <nav class="top-nav">
+            <a class="nav-brand" th:href="@{/books}">📚 BookSwap Hub</a>
+            <div class="nav-links">
+                <a class="nav-link active" th:href="@{/books}">Browse</a>
+                <th:block th:if="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/books/new}">+ List Book</a>
+                    <a class="nav-link" th:href="@{/books/my-listings}">My Listings</a>
+                    <a class="nav-link" th:href="@{/my-requests}">My Requests</a>
+                    <a class="nav-link" th:href="@{/owner/requests}">Inbox</a>
+                    <form th:action="@{/logout}" method="post" style="margin:0">
+                        <button type="submit" class="nav-link" style="background:none;cursor:pointer;border:none;">Sign
+                            Out</button>
+                    </form>
+                </th:block>
+                <th:block th:unless="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/login}">🔑 Login</a>
+                    <a class="nav-link accent" th:href="@{/register}">✨ Register</a>
+                </th:block>
+            </div>
+        </nav>
+
+        <!-- Header -->
+        <div class="page-header">
+            <h1>📖 Browse Books</h1>
+            <p>Discover books near you. Click a book to see full details and contact the owner.</p>
+        </div>
+
+        <!-- Location Bar -->
+        <div class="location-bar" id="locationBar"
+            style="margin-bottom:2rem; padding:1.25rem; background:rgba(30,27,58,0.6); border-radius:15px; border:1px solid rgba(124,58,237,0.2); backdrop-filter:blur(10px);">
+            <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                <div style="flex:1;">
+                    <div style="font-size:0.9rem; color:#94a3b8; margin-bottom:0.3rem;">📍 Your Current Location:</div>
+                    <div id="userLocText" style="font-weight:600; color:#e2e8f0; font-size:1rem;">Detecting location...
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline" id="detectLocBtn" onclick="initLocation()"
+                    style="padding:0.6rem 1.2rem; min-width:160px; border-radius:10px;">
+                    🔄 Update Location
+                </button>
+            </div>
+            <div id="locStatus" style="font-size:0.8rem; margin-top:0.5rem; display:none;"></div>
+        </div>
+
+        <!-- Book Cards -->
+        <div class="books-grid" id="booksGrid">
+            <!-- ... existing book cards loop ... -->
+            <a th:each="book : ${books}" th:href="@{/books/{id}(id=${book.id})}" class="book-card">
+
+                <!-- Image -->
+                <div class="book-card-image">
+                    <img th:if="${book.imagePath != null}" th:src="@{/uploads/{img}(img=${book.imagePath})}"
+                        th:alt="${book.title}" />
+                    <span th:unless="${book.imagePath != null}">📚</span>
+                </div>
+
+                <!-- Body -->
+                <div class="book-card-body">
+                    <div class="book-card-title" th:text="${book.title}">Title</div>
+                    <div class="book-card-author">by <span th:text="${book.author}">Author</span></div>
+
+                    <div class="book-card-meta">
+                        <span class="book-price" th:text="'₹' + ${book.price}">₹0</span>
+                        <span class="badge badge-category" th:text="${book.category.displayName}">Category</span>
+                        <span class="badge" th:classappend="${book.condition.name() == 'NEW'} ? 'badge-new' :
+                                          (${book.condition.name() == 'LIKE_NEW'} ? 'badge-like-new' : 'badge-old')"
+                            th:text="${book.condition.displayName}">Condition</span>
+                    </div>
+
+                    <!-- Distance badge — filled by JS -->
+                    <div class="distance-badge" th:if="${book.latitude != null}" th:data-lat="${book.latitude}"
+                        th:data-lng="${book.longitude}"
+                        style="margin-top: 0.5rem; background:rgba(124,58,237,0.15); border-radius:8px; padding:0.4rem 0.8rem; display:inline-flex; align-items:center; gap:0.4rem; color:#c4b5fd; font-weight:500;">
+                        📍 <span class="dist-label text-sparkle">Calculating distance…</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Empty state -->
+        <div class="empty-state" th:if="${books == null or books.isEmpty()}">
+            <div class="empty-icon">🔍</div>
+            <h3>No books listed yet</h3>
+            <p>Be the first to <a th:href="@{/books/new}" style="color:#a78bfa">list a book</a>!</p>
+        </div>
+
+    </div>
+
+    <!-- Distance calculator (Haversine in JS) -->
+    <script>
+        function setStatus(msg, color) {
+            const el = document.getElementById('locStatus');
+            el.style.display = 'block'; el.style.color = color || '#94a3b8'; el.innerHTML = msg;
+        }
+
+        function haversine(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) ** 2;
+            return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+        }
+
+        function updateDistances(userLat, userLng, address) {
+            if (address) document.getElementById('userLocText').textContent = address;
+            else document.getElementById('userLocText').textContent = `${parseFloat(userLat).toFixed(4)}, ${parseFloat(userLng).toFixed(4)}`;
+
+            localStorage.setItem('userLat', userLat);
+            localStorage.setItem('userLng', userLng);
+            if (address) localStorage.setItem('userAddress', address);
+
+            document.querySelectorAll('.distance-badge').forEach(badge => {
+                const bookLat = parseFloat(badge.dataset.lat);
+                const bookLng = parseFloat(badge.dataset.lng);
+                const dist = haversine(userLat, userLng, bookLat, bookLng);
+                badge.querySelector('.dist-label').textContent = dist + ' km away from you';
+            });
+            setStatus('✅ Distances updated based on your location.', '#6ee7b7');
+        }
+
+        async function locateByIP() {
+            setStatus('🌐 GPS unavailable. Trying IP-based location...', '#c4b5fd');
+            try {
+                const res = await fetch('https://ipapi.co/json/');
+                const data = await res.json();
+                if (!data.latitude) throw new Error();
+                updateDistances(data.latitude, data.longitude, `${data.city}, ${data.region} (IP-based)`);
+            } catch {
+                setStatus('❌ Could not detect location. Distances won\'t show.', '#fca5a5');
+                document.getElementById('userLocText').textContent = 'Location not set';
+                document.querySelectorAll('.dist-label').forEach(el => el.textContent = 'Location unknown');
+            }
+        }
+
+        function initLocation() {
+            const btn = document.getElementById('detectLocBtn');
+            btn.textContent = '⏳ Detecting...';
+            setStatus('📡 Requesting location access...', '#c4b5fd');
+
+            const options = { timeout: 8000, enableHighAccuracy: true };
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async pos => {
+                        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+                        // Optional: reverse geocode for better display
+                        try {
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, { headers: { 'Accept-Language': 'en' } });
+                            const data = await res.json();
+                            updateDistances(lat, lng, data.address.city || data.address.town || data.address.village || 'Nearby Area');
+                        } catch {
+                            updateDistances(lat, lng);
+                        }
+                        btn.textContent = '🔄 Update Location';
+                    },
+                    err => {
+                        locateByIP();
+                        btn.textContent = '🔄 Update Location';
+                    },
+                    options
+                );
+            } else {
+                locateByIP();
+                btn.textContent = '🔄 Update Location';
+            }
+        }
+
+        // Auto-run on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedLat = localStorage.getItem('userLat');
+            const savedLng = localStorage.getItem('userLng');
+            const savedAddr = localStorage.getItem('userAddress');
+
+            if (savedLat && savedLng) {
+                updateDistances(savedLat, savedLng, savedAddr);
+            } else {
+                initLocation();
+            }
+        });
+    </script>
+</body>
+
+</html>

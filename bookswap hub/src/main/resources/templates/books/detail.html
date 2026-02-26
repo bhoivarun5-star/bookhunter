@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="${book.title} + ' – BookSwap Hub'">Book Detail</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+    <link rel="stylesheet" th:href="@{/css/books.css}" />
+</head>
+
+<body>
+    <div class="page-wrapper">
+
+        <!-- Nav -->
+        <nav class="top-nav">
+            <a class="nav-brand" th:href="@{/books}">📚 BookSwap Hub</a>
+            <div class="nav-links">
+                <a class="nav-link" th:href="@{/books}">Browse</a>
+                <th:block th:if="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/books/new}">+ List Book</a>
+                    <a class="nav-link" th:href="@{/books/my-listings}">My Listings</a>
+                    <a class="nav-link" th:href="@{/my-requests}">My Requests</a>
+                    <a class="nav-link" th:href="@{/owner/requests}">Inbox</a>
+                    <form th:action="@{/logout}" method="post" style="margin:0">
+                        <button type="submit" class="nav-link" style="background:none;cursor:pointer;border:none;">Sign
+                            Out</button>
+                    </form>
+                </th:block>
+                <th:block th:unless="${isLoggedIn}">
+                    <a class="nav-link" th:href="@{/login}">🔑 Login</a>
+                    <a class="nav-link accent" th:href="@{/register}">✨ Register</a>
+                </th:block>
+            </div>
+        </nav>
+
+        <!-- Flash messages -->
+        <div class="flash-success" th:if="${successMessage}">✅ <span th:text="${successMessage}"></span></div>
+        <div class="flash-error" th:if="${errorMessage}">❌ <span th:text="${errorMessage}"></span></div>
+
+        <div class="detail-card">
+
+            <!-- Image -->
+            <div class="detail-image">
+                <img th:if="${book.imagePath != null}" th:src="@{/uploads/{img}(img=${book.imagePath})}"
+                    th:alt="${book.title}" />
+                <span th:unless="${book.imagePath != null}">📚</span>
+            </div>
+
+            <div class="detail-body">
+
+                <!-- Sold badge -->
+                <div th:if="${book.sold}" class="detail-badges">
+                    <span class="badge badge-sold">SOLD</span>
+                </div>
+
+                <div class="detail-title" th:text="${book.title}">Title</div>
+                <div class="detail-author">by <strong th:text="${book.author}">Author</strong></div>
+                <div class="detail-price" th:text="'₹' + ${book.price}">₹0</div>
+
+                <!-- Badges -->
+                <div class="detail-badges">
+                    <span class="badge badge-category" th:text="${book.category.displayName}">Category</span>
+                    <span class="badge" th:classappend="${book.condition.name() == 'NEW'} ? 'badge-new' :
+                                      (${book.condition.name() == 'LIKE_NEW'} ? 'badge-like-new' : 'badge-old')"
+                        th:text="${book.condition.displayName}">Condition</span>
+                </div>
+
+                <!-- Description (always visible on detail page) -->
+                <div class="detail-section">
+                    <div class="detail-section-title">📝 Description</div>
+                    <p th:text="${book.description}">Description</p>
+                </div>
+
+                <!-- Location / Address (only visible on detail page) -->
+                <div class="detail-section" th:if="${book.address != null}">
+                    <div class="detail-section-title">📍 Location</div>
+                    <p th:text="${book.address}">Address</p>
+                    <!-- Distance from user -->
+                    <div th:if="${book.latitude != null}" class="distance-badge" th:data-lat="${book.latitude}"
+                        th:data-lng="${book.longitude}" style="margin-top:0.75rem; display:inline-flex;">
+                        📍 <span class="dist-label">Calculating distance…</span>
+                    </div>
+                </div>
+
+                <!-- Owner info -->
+                <div class="detail-section">
+                    <div class="detail-section-title">👤 Listed by</div>
+                    <p th:text="${book.owner.username}">Owner</p>
+                </div>
+
+                <!-- ── Owner Actions ────────────────────────────────────────────── -->
+                <div th:if="${isOwner}" style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:1.5rem;">
+                    <a th:href="@{/books/{id}/edit(id=${book.id})}" class="action-btn action-btn-edit">✏️ Edit</a>
+
+                    <form th:action="@{/books/{id}/delete(id=${book.id})}" method="post" style="margin:0"
+                        onsubmit="return confirm('Delete this listing?')">
+                        <button type="submit" class="action-btn action-btn-delete">🗑 Delete</button>
+                    </form>
+
+                    <form th:unless="${book.sold}" th:action="@{/books/{id}/sold(id=${book.id})}" method="post"
+                        style="margin:0">
+                        <button type="submit" class="action-btn action-btn-sold">✅ Mark as Sold</button>
+                    </form>
+                </div>
+
+                <!-- ── Buy Request ──────────────────────────────────────────── -->
+                <div th:unless="${isOwner or book.sold}">
+                    <!-- Guest: prompt to login -->
+                    <div th:unless="${isLoggedIn}" class="request-form">
+                        <h3>💬 Interested in this book?</h3>
+                        <p style="color:#94a3b8;margin-bottom:1rem;">Log in to send a request to the owner.</p>
+                        <a th:href="@{/login}" class="btn btn-primary" style="max-width:200px;">🔑 Login to Request</a>
+                    </div>
+                    <!-- Logged-in: request form -->
+                    <div th:if="${isLoggedIn}" class="request-form">
+                        <h3>💬 Interested in this book?</h3>
+                        <div th:if="${hasRequested}" class="flash-success">
+                            ✅ You've already sent a request. The owner will contact you!
+                        </div>
+                        <div th:unless="${hasRequested}">
+                            <form th:action="@{/books/{id}/request(id=${book.id})}" method="post">
+                                <div class="form-group">
+                                    <label>Message to the owner (optional)</label>
+                                    <div class="input-wrapper">
+                                        <textarea name="message" class="form-control"
+                                            placeholder="Hi! I'm interested in buying this book…"
+                                            style="padding-left:1rem; min-height:80px;"></textarea>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="margin-top:0.75rem;">
+                                    📩 Send Request
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Back -->
+                <a th:href="@{/books}" class="btn btn-outline" style="margin-top:1rem; display:inline-flex;">
+                    ← Back to listings
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Distance calculator (Haversine in JS) -->
+    <script>
+        function haversine(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) ** 2;
+            return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+        }
+
+        function updateDistances(userLat, userLng) {
+            localStorage.setItem('userLat', userLat);
+            localStorage.setItem('userLng', userLng);
+
+            document.querySelectorAll('.distance-badge').forEach(badge => {
+                const bookLat = parseFloat(badge.dataset.lat);
+                const bookLng = parseFloat(badge.dataset.lng);
+                const dist = haversine(userLat, userLng, bookLat, bookLng);
+                badge.querySelector('.dist-label').textContent = dist + ' km from you';
+            });
+        }
+
+        async function locateByIP() {
+            try {
+                const res = await fetch('https://ipapi.co/json/');
+                const data = await res.json();
+                if (data.latitude) updateDistances(data.latitude, data.longitude);
+            } catch {
+                document.querySelectorAll('.dist-label').forEach(el => el.textContent = 'Distance unknown');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedLat = localStorage.getItem('userLat');
+            const savedLng = localStorage.getItem('userLng');
+            if (savedLat && savedLng) {
+                updateDistances(savedLat, savedLng);
+            } else if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => updateDistances(pos.coords.latitude, pos.coords.longitude),
+                    () => locateByIP(),
+                    { timeout: 5000 }
+                );
+            } else {
+                locateByIP();
+            }
+        });
+    </script>
+</body>
+
+</html>
